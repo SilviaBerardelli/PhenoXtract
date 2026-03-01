@@ -27,5 +27,5 @@ Runs the benchmark on the **OLIDA** and **mitochondrial** datasets.
 Runs the benchmark on the **GSC** dataset (folder `GSC+`).
 
 ### Configuration and constants
-- `constant.py`  
+- `constants.py`  
 Configuration/constants file. **Add your openAI API key here**.
