@@ -5,6 +5,27 @@ PhenoXtract: combining Large Language Model and Knowledge Graph embedding to ext
 
 - **Python >= 3.9**
 - **requirements.txt**
+- `pip` and `venv` (or `conda`)
+
+## Installation
+
+### Option pip + venv
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+### Option conda
+```bash
+conda create -n phenoxtract python=3.9 -y 
+conda activate phenoxtract 
+python -m pip install --upgrade pip
+```
+
+### Install dependecies
+```bash
+pip install -r ./scripts/requirements.txt
+```
 
 ## `scripts/` contents
 
