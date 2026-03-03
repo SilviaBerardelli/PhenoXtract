@@ -116,3 +116,5 @@ for index, row in df.iterrows():
             row['ExtractedHPO_OT_RAG'].remove(None)
         if "nan" in row['ExtractedHPO_OT_RAG']:
             row['ExtractedHPO_OT_RAG'].remove("nan")
+
+df.to_csv('benchmark_output.tsv', sep='\t', index=False)
