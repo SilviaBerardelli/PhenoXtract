@@ -30,9 +30,11 @@ pip install -r ./scripts/requirements.txt
 ## `scripts/` contents
 
 ### Embedding preparation and ontology completion
-- `optimal_transport.py`
-- `populate_missing_terms.py`  
-Used for **embedding preparation** and for **filling missing ontology synonyms and definitions**.
+
+1. Download from the [HPO downloads page]https://hpo.jax.org/data/ontology the file: `hp.owl`
+2. Optional: run `populate_missing_terms.py` (it requires UMLS API KEY)
+3. Run `optimal_transport.py`
+Used for **filling missing ontology synonyms and definitions** and for **embedding preparation**.
 
 ### PhenoXtract pipeline
 - `concept_recognition.py`
