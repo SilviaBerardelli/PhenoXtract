@@ -12,18 +12,18 @@ from openai import OpenAI
 import time
 import os
 from constants import API_KEY, TEMP, GPT_MODEL
-
-
 warnings.filterwarnings("ignore")
 from constants import model_name
 
 text_model = SentenceTransformer(model_name)
+client_open_ai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", API_KEY))
 
-text_embeddings = torch.load('hpo_embeddings_text.pt')
-text_embeddings_def = torch.load('hpo_embeddings_text_def.pt')
-synonyms_embeddings = torch.load('hpo_embeddings_text_syn.pt')
-graph_embeddings = torch.load('hpo_embeddings_graph.pt')
-latent_embeddings = torch.load('hpo_embeddings_latent_space.pt')
+
+text_embeddings = torch.load('hpo_embeddings_text.pt', weights_only=False)
+text_embeddings_def = torch.load('hpo_embeddings_text_def.pt', weights_only=False)
+synonyms_embeddings = torch.load('hpo_embeddings_text_syn.pt', weights_only=False)
+graph_embeddings = torch.load('hpo_embeddings_graph.pt', weights_only=False)
+latent_embeddings = torch.load('hpo_embeddings_latent_space.pt', weights_only=False)
 
 f = open("term_labels.json")
 term_labels = json.load(f)
@@ -124,8 +124,7 @@ def generate_results(query, content, client_open_ai):
         return "N/A"
 
 
-def find_top_candidate_rag(query, list_candidates, list_labels_candidates):
-    client_open_ai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", API_KEY))
+def find_top_candidate_rag(query, list_candidates, list_labels_candidates, client_open_ai):
 
     answer = generate_results(query, list_labels_candidates, client_open_ai) #, encoding)
 
@@ -137,7 +136,6 @@ def find_top_candidate_rag(query, list_candidates, list_labels_candidates):
 
 def find_top_candidate(list_candidates, list_labels_candidates):
 
-    print('list candidates', list_candidates)
     counting = Counter(list_labels_candidates)
     list_counts = [v for v in counting.values()]
     list_equal_terms = {}
@@ -169,7 +167,7 @@ def find_top_candidate(list_candidates, list_labels_candidates):
         return None, False
 
 
-def entity_linking_from_term(query):
+def entity_linking_from_term(query, client_open_ai):
 
     list_candidates = []
     list_labels_candidates = []
@@ -240,7 +238,7 @@ def entity_linking_from_term(query):
     top_1_hpo_rag = top_1_hpo
 
     if rag_necessary:
-        top_1_rag = find_top_candidate_rag(query, list_candidates, list_labels_candidates)
+        top_1_rag = find_top_candidate_rag(query, list_candidates, list_labels_candidates, client_open_ai)
 
     if top_1_rag and top_1_rag != 'None' and top_1_rag != "N/A":
         top_1_hpo_rag = [key for key, x in dict_labels_valid.items() if x == top_1_rag][0]
