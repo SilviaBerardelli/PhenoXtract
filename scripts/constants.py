@@ -4,4 +4,3 @@ TEMP = 0.2
 GPT_MODEL = 'gpt-4o' # 'o3-mini'
 N_TRAINING_NODES = 3000
 MODEL_SENTENCES = 'all-MiniLM-L6-v2'
-SOURCE = 'hp.obo'
