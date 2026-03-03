@@ -10,10 +10,7 @@ from constants import API_KEY, TEMP, GPT_MODEL
 client_open_ai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", API_KEY))
 
 
-encoding = tiktoken.encoding_for_model(GPT_MODEL)
-
-
-def get_raw_response(content, client_open_ai, encoding):
+def get_raw_response(content, client_open_ai):
 
     prompt = f"""
 
@@ -80,7 +77,6 @@ def get_raw_response(content, client_open_ai, encoding):
     messages = [{"role": "user", "content": prompt}]
 
     if GPT_MODEL == 'gpt-4o':
-        input_tokens = len(encoding.encode(prompt))
         gpt_funct = client_open_ai.chat.completions.create(
             model=model,
             messages=messages,
@@ -91,7 +87,6 @@ def get_raw_response(content, client_open_ai, encoding):
             stream=False
         )
     else: #reasoning model
-        input_tokens = ''
         gpt_funct = client_open_ai.chat.completions.create(
             model=model,
             messages=messages,
@@ -100,16 +95,16 @@ def get_raw_response(content, client_open_ai, encoding):
             timeout=60,
             stream=False
         )
-    return gpt_funct, input_tokens
+    return gpt_funct
 
 
-def generate_question_answer(content, client_open_ai, encoding):
+def generate_question_answer(content, client_open_ai):
 
     if content is None or len(content) == 0:
         return "N/A"
 
     try:
-        response, input_tokens = get_raw_response(content, client_open_ai, encoding)
+        response = get_raw_response(content, client_open_ai)
         func_args = json.loads(response.choices[0].message.function_call.arguments)
         return func_args
 
@@ -118,10 +113,11 @@ def generate_question_answer(content, client_open_ai, encoding):
         return "N/A"
 
 
-def concept_recognition_from_text(content, client_open_ai, encoding, json_path, output_file_path):
+def concept_recognition_from_text(content, client_open_ai, json_path, output_file_path):
 
     start_generating = time.time()
-    answer = generate_question_answer(content, client_open_ai, encoding)
+
+    answer = generate_question_answer(content, client_open_ai)
     end_generating = time.time()
 
     time_answer = end_generating - start_generating
