@@ -31,7 +31,7 @@ pip install -r ./scripts/requirements.txt
 
 ### Embedding preparation and ontology completion
 
-1. Download from the https://hpo.jax.org/data/ontology the file: `hp.owl`
+1. Download from https://hpo.jax.org/data/ontology the ontology file: `hp.owl`
 2. Optional: run `populate_missing_terms.py` (it requires UMLS API KEY)
 3. Run `optimal_transport.py`
 Used for **filling missing ontology synonyms and definitions** and for **embedding preparation**.
