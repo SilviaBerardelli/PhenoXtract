@@ -36,12 +36,18 @@ pip install -r ./scripts/requirements.txt
 3. Run `optimal_transport.py`
 Used for **filling missing ontology synonyms and definitions** and for **embedding preparation**.
 
-### PhenoXtract pipeline
+### PhenoXtract main pipeline
+- `main.py`
 - `concept_recognition.py`
 - `entity_linking.py`  
 These are the two main steps of the **PhenoXtract** approach:
 1. concept recognition
 2. entity linking
+
+Launch `main.py` to test PhenoXtract
+```bash
+python main.py --api-key '{YOUR_OPENAI_API_KEY}' --text 'Proband has high temperature' --json-path './preprocess_json' --output-json-path ./output_json.json
+```
 
 ### Benchmarking
 - `benchmark.py`  
@@ -51,4 +57,4 @@ Runs the benchmark on the **GSC** dataset (folder `GSC+`).
 
 ### Configuration and constants
 - `constants.py`  
-Configuration/constants file. **Add your openAI API key here**.
+Configuration/constants file. **Add your openAI API key here to run benchmark scripts**.
