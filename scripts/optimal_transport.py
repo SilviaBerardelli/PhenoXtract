@@ -29,8 +29,6 @@ time_start = time.time()
 ontology = Ontology("./hp.owl")
 terms = list(ontology.terms())
 
-# term_to_idx = {term.id: idx for idx, term in enumerate(terms)}
-
 term_labels = {term.id: term.name for term in terms if term.name}
 term_definitions = {term.id: term.definition for term in terms}
 term_synonyms = {
@@ -38,8 +36,6 @@ term_synonyms = {
     for term in terms
 }
 
-
-###QUI NUOVA PARTE
 # Keep only real HPO terms and remove obsolete HPO terms
 valid_hpo_ids = {
     term.id
