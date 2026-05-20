@@ -376,7 +376,7 @@ N = text_embeddings.shape[0]
 C = np.empty((n_text, n_graph), dtype=np.float32)
 
 
-chunk_size = 1000 #1000  # da regolare
+chunk_size = 1000 
 
 for i in range(0, n_text, chunk_size):
     i_end = min(i + chunk_size, n_text)
