@@ -167,7 +167,7 @@ def find_top_candidate(list_candidates, list_labels_candidates):
         return None, False
 
 
-def entity_linking_from_term(query, client_open_ai):
+def entity_linking_from_term(query, client_open_ai, debug=False):
 
     list_candidates = []
     list_labels_candidates = []
@@ -177,84 +177,186 @@ def entity_linking_from_term(query, client_open_ai):
     query_emb = text_model.encode([query], convert_to_numpy=True)
     query_emb = normalize(query_emb, axis=1)
 
-    # Similarity in text embeddings space
+    # --------------------------------------------------
+    # 1. Similarity in label text-embedding space
+    # --------------------------------------------------
     cos_sims = np.dot(query_emb, text_embeddings.T)[0]
+
     best_idx = np.argmax(cos_sims)
     best_term = terms_list[best_idx]
 
-    #print("Top 1 similar term in text space:", term_labels[best_term.id], cos_sims[best_idx])
-    list_candidates.append({term_labels[best_term.id]: round(cos_sims[best_idx], 3)})
-    category_candidates['Label'] = term_labels[best_term.id]
-    list_labels_candidates.append(term_labels[best_term.id])
-    dict_label_id[term_labels[best_term.id]] = best_term.id
+    label_candidate = term_labels[best_term.id]
+    label_candidate_hpo = best_term.id
+    label_candidate_score = round(cos_sims[best_idx], 3)
 
-    # Similarity in terms definitions text embeddings space
+    list_candidates.append({label_candidate: label_candidate_score})
+    category_candidates["Label"] = label_candidate
+    list_labels_candidates.append(label_candidate)
+    dict_label_id[label_candidate] = label_candidate_hpo
+
+    # --------------------------------------------------
+    # 2. Similarity in definition text-embedding space
+    # --------------------------------------------------
     cos_sims_def = np.dot(query_emb, text_embeddings_def.T)[0]
+
     best_idx_def = np.argmax(cos_sims_def)
     best_term_def = term_definitions_valid[best_idx_def]
 
-    hpo_max_def = [key for key, el in dict_definitions_valid.items() if str(el) == best_term_def][0]
-    term_max_def = term_labels[hpo_max_def]
-    #print(f"Top 1 similar term in definition text space: {term_max_def} ({best_term_def}) {cos_sims_def[best_idx_def]}")
-    list_candidates.append({term_max_def: round(cos_sims_def[best_idx_def], 3)})
-    category_candidates['Definition'] = term_max_def
-    list_labels_candidates.append(term_max_def)
-    dict_label_id[term_max_def] = hpo_max_def
+    hpo_max_def = [
+        key
+        for key, el in dict_definitions_valid.items()
+        if str(el) == best_term_def
+    ][0]
 
+    definition_candidate = term_labels[hpo_max_def]
+    definition_candidate_hpo = hpo_max_def
+    definition_candidate_score = round(cos_sims_def[best_idx_def], 3)
+
+    list_candidates.append({definition_candidate: definition_candidate_score})
+    category_candidates["Definition"] = definition_candidate
+    list_labels_candidates.append(definition_candidate)
+    dict_label_id[definition_candidate] = definition_candidate_hpo
+
+    # --------------------------------------------------
+    # 3. Similarity in synonym text-embedding space
+    # --------------------------------------------------
     cos_sims_syn = np.dot(query_emb, synonyms_embeddings.T)[0]
-    top_k = 10
-    top_k_idx = np.argsort(cos_sims_syn)[-top_k:]
-    top_k_idx = top_k_idx[::-1]  # ordinati dal più simile al meno simile
 
-    #print(f"Top 1 similar term with synonyms: {term_labels[all_synonyms_hpo[top_k_idx[0]]]} ({all_synonyms[top_k_idx[0]]}) {cos_sims_syn[top_k_idx[0]]}")
-    list_candidates.append({term_labels[all_synonyms_hpo[top_k_idx[0]]]: round(cos_sims_syn[top_k_idx[0]], 3)})
-    category_candidates['Synonym'] = term_labels[all_synonyms_hpo[top_k_idx[0]]]
-    list_labels_candidates.append(term_labels[all_synonyms_hpo[top_k_idx[0]]])
-    dict_label_id[term_labels[all_synonyms_hpo[top_k_idx[0]]]] = all_synonyms_hpo[top_k_idx[0]]
+    top_k_syn = 10
+    top_k_idx_syn = np.argsort(cos_sims_syn)[-top_k_syn:][::-1]
 
-    # Project query in latent space using top K termini
+    best_syn_idx = top_k_idx_syn[0]
+    synonym_candidate_hpo = all_synonyms_hpo[best_syn_idx]
+    synonym_candidate = term_labels[synonym_candidate_hpo]
+    synonym_candidate_score = round(cos_sims_syn[best_syn_idx], 3)
+
+    list_candidates.append({synonym_candidate: synonym_candidate_score})
+    category_candidates["Synonym"] = synonym_candidate
+    list_labels_candidates.append(synonym_candidate)
+    dict_label_id[synonym_candidate] = synonym_candidate_hpo
+    print('label_candidate', label_candidate, 'synonym_candidate', synonym_candidate, 'definition_candidate:', definition_candidate)
+
+    # --------------------------------------------------
+    # 4. Latent-space reranking of top-K label candidates
+    # --------------------------------------------------
     K = 10
-    top_k_idx = np.argsort(cos_sims)[-K:]
+    top_k_idx = np.argsort(cos_sims)[-K:][::-1]
 
-    top_k_sims = cos_sims[top_k_idx]
-    top_k_sims = top_k_sims / top_k_sims.sum()
-    query_latent = np.sum(latent_embeddings[top_k_idx] * top_k_sims[:, None], axis=0)
+    top_k_text_sims = cos_sims[top_k_idx]
 
-    latent_sims = np.dot(query_latent, latent_embeddings.T)
-    latent_sims = latent_sims / (np.linalg.norm(query_latent) * np.linalg.norm(latent_embeddings, axis=1))
-    latent_best_idx = np.argmax(latent_sims)
+    # Avoid negative or unstable weights
+    top_k_weights = np.maximum(top_k_text_sims, 0)
+
+    if top_k_weights.sum() == 0:
+        top_k_weights = np.ones_like(top_k_weights) / len(top_k_weights)
+    else:
+        top_k_weights = top_k_weights / top_k_weights.sum()
+
+    latent_embeddings_norm = normalize(latent_embeddings, axis=1)
+
+    query_latent = np.sum(
+        latent_embeddings_norm[top_k_idx] * top_k_weights[:, None],
+        axis=0
+    )
+
+    query_latent = normalize(query_latent.reshape(1, -1), axis=1)
+
+    latent_sims = np.dot(query_latent, latent_embeddings_norm.T)[0]
+
+    # Important change:
+    # choose the best latent-space term ONLY among the original top-K text candidates
+    latent_best_idx = top_k_idx[np.argmax(latent_sims[top_k_idx])]
     latent_best_term = terms_list[latent_best_idx]
 
+    latent_candidate = term_labels[latent_best_term.id]
+    latent_candidate_hpo = latent_best_term.id
+    latent_candidate_score = round(latent_sims[latent_best_idx], 5)
 
-    list_candidates.append({term_labels[latent_best_term.id]: round(latent_sims[latent_best_idx], 5)})
-    category_candidates['Aligned'] = term_labels[latent_best_term.id]
-    list_labels_candidates.append(term_labels[latent_best_term.id])
-    dict_label_id[term_labels[latent_best_term.id]] = latent_best_idx
+    list_candidates.append({latent_candidate: latent_candidate_score})
 
-    top_1, rag_necessary = find_top_candidate(list_candidates, list_labels_candidates)
-    top_1_hpo = [key for key, x in dict_labels_valid.items() if x == top_1][0]
+    print(list_candidates)
+    category_candidates["Aligned"] = latent_candidate
+    list_labels_candidates.append(latent_candidate)
+    dict_label_id[latent_candidate] = latent_candidate_hpo
+
+    if debug:
+        print("\nTop K label-space terms used for latent projection:")
+        for rank, idx in enumerate(top_k_idx, start=1):
+            term = terms_list[idx]
+            hpo_id = term.id
+            label = term_labels[hpo_id]
+            print(
+                f"{rank}. {label} ({hpo_id}) | "
+                f"text_cosine={cos_sims[idx]:.4f} | "
+                f"weight={top_k_weights[rank - 1]:.4f} | "
+                f"latent_cosine={latent_sims[idx]:.5f}"
+            )
+
+        print("\nSelected latent reranked candidate:")
+        print(
+            f"{latent_candidate} ({latent_candidate_hpo}) | "
+            f"latent_cosine={latent_candidate_score}"
+        )
+
+        print("\nlist_candidates:")
+        print(list_candidates)
+
+    # --------------------------------------------------
+    # 5. Voting / candidate selection
+    # --------------------------------------------------
+    top_1, rag_necessary = find_top_candidate(
+        list_candidates,
+        list_labels_candidates
+    )
+
+    top_1_hpo = dict_label_id.get(top_1)
 
     top_1_rag = top_1
     top_1_hpo_rag = top_1_hpo
 
     if rag_necessary:
-        top_1_rag = find_top_candidate_rag(query, list_candidates, list_labels_candidates, client_open_ai)
+        top_1_rag = find_top_candidate_rag(
+            query,
+            list_candidates,
+            list_labels_candidates,
+            client_open_ai
+        )
 
-    if top_1_rag and top_1_rag != 'None' and top_1_rag != "N/A":
-        top_1_hpo_rag = [key for key, x in dict_labels_valid.items() if x == top_1_rag][0]
-    elif top_1_rag and top_1_rag == 'None':
-        top_1_hpo_rag = 'None'
+    if top_1_rag and top_1_rag not in ["None", "N/A"]:
+        top_1_hpo_rag = dict_label_id.get(top_1_rag)
 
-    try:
-        matching_keys_top_1 = [key for key, value in category_candidates.items() if value == top_1]
-    except:
-        matching_keys_top_1 = []
-    try:
-        matching_keys_top_1_rag = [key for key, value in category_candidates.items() if value == top_1_rag]
-    except:
-        matching_keys_top_1_rag = []
+        # Fallback only if RAG returns a valid label not present among candidates
+        if top_1_hpo_rag is None:
+            matches = [
+                key
+                for key, value in dict_labels_valid.items()
+                if value == top_1_rag
+            ]
+            top_1_hpo_rag = matches[0] if matches else None
 
-    return top_1, top_1_hpo, top_1_rag, top_1_hpo_rag, matching_keys_top_1, matching_keys_top_1_rag
+    elif top_1_rag == "None":
+        top_1_hpo_rag = "None"
+
+    matching_keys_top_1 = [
+        key
+        for key, value in category_candidates.items()
+        if value == top_1
+    ]
+
+    matching_keys_top_1_rag = [
+        key
+        for key, value in category_candidates.items()
+        if value == top_1_rag
+    ]
+
+    return (
+        top_1,
+        top_1_hpo,
+        top_1_rag,
+        top_1_hpo_rag,
+        matching_keys_top_1,
+        matching_keys_top_1_rag,
+    )
 
 
 
