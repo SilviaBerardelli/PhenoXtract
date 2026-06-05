@@ -16,15 +16,13 @@ json_directory = "./output_concept_recognition/json_files_GSC_4o"
 with open('list_obsolete.json', 'r') as file:
     json_obsolete_hpo = json.load(file)
 
-encoding = 'to_define_custom'
 # reading Text files (iter on 228 GSC+ files)
-
 
 def extract_phenotypes_info(data, filename_string, json_path, output_file_path):
 
     print('------------ CONCEPT RECOGNITION -------------')
     start_cr = time.time()
-    df_final = concept_recognition_from_text(data, client_open_ai, encoding, json_path, output_file_path)
+    df_final = concept_recognition_from_text(data, client_open_ai, json_path, output_file_path)
     end_cr = time.time()
 
     start_el = time.time()
