@@ -15,14 +15,12 @@ start_time = time.time()
 df = pd.read_csv(dataset_path, sep=",")
 df['ExtractedHPO_OT'] = ""
 
-encoding = ''
-
 
 def extract_phenotypes_info(text, json_path, output_file_path):
 
     print('------------ CONCEPT RECOGNITION -------------')
     start_cr = time.time()
-    df_final = concept_recognition_from_text(text, client_open_ai, encoding, json_path, output_file_path)
+    df_final = concept_recognition_from_text(text, client_open_ai, json_path, output_file_path)
     end_cr = time.time()
 
 
