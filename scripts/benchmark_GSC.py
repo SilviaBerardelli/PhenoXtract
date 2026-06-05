@@ -18,7 +18,7 @@ with open('list_obsolete.json', 'r') as file:
 
 # reading Text files (iter on 228 GSC+ files)
 
-def extract_phenotypes_info(data, filename_string, json_path, output_file_path):
+def extract_phenotypes_info(data, json_path, output_file_path):
 
     print('------------ CONCEPT RECOGNITION -------------')
     start_cr = time.time()
